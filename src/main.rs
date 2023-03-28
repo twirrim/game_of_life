@@ -3,14 +3,19 @@ extern crate lazy_static;
 
 use std::fs;
 
-use indicatif::ProgressIterator;
+use indicatif::{
+    MultiProgress, ParallelProgressIterator, ProgressBar, ProgressIterator, ProgressStyle,
+};
 use itertools::Itertools;
 use rand::Rng;
+use rayon::iter::ParallelIterator;
+use rayon::prelude::*;
 use ril::prelude::*;
 
-const WIDTH: u32 = 3840;
-const HEIGHT: u32 = 2160;
+const WIDTH: u32 = 800;
+const HEIGHT: u32 = 600;
 const OUTPUT_PATH: &str = "./output";
+const FRAMES: u32 = 1500;
 
 lazy_static! {
     static ref STARTING_CELLS: u32 = ((WIDTH as f32 * HEIGHT as f32) * 0.1) as u32;
@@ -37,17 +42,37 @@ fn main() {
     // TODO: Instead of tracking this in the image, have a hashmap that just tracks known alive cells.
 
     // This is such a dumb idea..
-    let cells = (0..=WIDTH).cartesian_product(0..=HEIGHT);
+    let cells: Vec<(u32, u32)> = (0..WIDTH)
+        .cartesian_product(0..HEIGHT)
+        .into_iter()
+        .collect();
 
-    println!("Producing frames");
-    for frame in (1..200).progress() {
+    let style = ProgressStyle::with_template(
+        "[{elapsed_precise} / {eta_precise}] {wide_bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
+    )
+    .unwrap();
+    let m = MultiProgress::new();
+    let pb = m.add(ProgressBar::new(FRAMES as u64));
+    pb.set_style(style.clone());
+    let pb2 = m.insert_after(&pb, ProgressBar::new(cells.len() as u64));
+    pb2.set_style(style.clone());
+
+    m.println("Producing frames").unwrap();
+    for frame in 1..FRAMES {
+        pb.inc(1);
         let mut current_image = Image::new(WIDTH, HEIGHT, Rgb::white());
-        for cell in cells.clone() {
-            if evaluate_cell(cell.0, cell.1, previous_image.to_owned()) {
-                current_image.set_pixel(cell.0, cell.1, Rgb::black());
-            }
+
+        let to_update: Vec<(u32, u32)> = cells
+            .clone()
+            .into_par_iter()
+            .progress_with(pb2.clone())
+            .filter(|cell| evaluate_cell(cell.0, cell.1, previous_image.clone()))
+            .collect();
+        pb2.reset();
+        for cell in to_update {
+            current_image.set_pixel(cell.0, cell.1, Rgb::black());
         }
-        
+
         current_image
             .save_inferred(format!("{OUTPUT_PATH}/{:03}.png", frame))
             .unwrap();
