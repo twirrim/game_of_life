@@ -1,24 +1,29 @@
 #[macro_use]
 extern crate lazy_static;
 
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::fs;
 
-use indicatif::{
-    MultiProgress, ParallelProgressIterator, ProgressBar, ProgressIterator, ProgressStyle,
-};
-use itertools::Itertools;
+use indicatif::{MultiProgress, ProgressBar, ProgressIterator, ProgressStyle};
+// use memoize::memoize;
 use rand::Rng;
-use rayon::iter::ParallelIterator;
 use rayon::prelude::*;
 use ril::prelude::*;
 
-const WIDTH: u32 = 800;
-const HEIGHT: u32 = 600;
+//3840x2160
+const WIDTH: i32 = 3840;
+const HEIGHT: i32 = 2160;
 const OUTPUT_PATH: &str = "./output";
-const FRAMES: u32 = 1500;
+const FRAMES: u32 = 9000;
 
 lazy_static! {
-    static ref STARTING_CELLS: u32 = ((WIDTH as f32 * HEIGHT as f32) * 0.1) as u32;
+    static ref STARTING_CELLS: u32 = ((WIDTH as f32 * HEIGHT as f32) * 0.5) as u32;
+}
+
+#[derive(Debug, PartialEq, Clone, Eq, Hash)]
+struct Cell {
+    x: i32,
+    y: i32,
 }
 
 fn main() {
@@ -26,95 +31,140 @@ fn main() {
 
     fs::create_dir_all(OUTPUT_PATH).unwrap();
     println!("Starting with {:} cells", *STARTING_CELLS);
-    let mut previous_image = Image::new(WIDTH, HEIGHT, Rgb::white());
     println!("Randomising starting cells");
+
+    let mut active_cells = FxHashSet::default();
     for _ in (0..*STARTING_CELLS).progress() {
         let x = rng.gen_range(0..WIDTH);
         let y = rng.gen_range(0..HEIGHT);
-        previous_image.set_pixel(x, y, Rgb::black());
+        active_cells.insert(Cell { x: x, y: y });
     }
-    previous_image
-        .save_inferred(format!("{OUTPUT_PATH}/000.png"))
-        .unwrap();
-    // This is going to be an inefficient approach to start with.
-    // For each frame, make a blank image.
-    // Check each cell in the original image, and all the cells around it.
-    // TODO: Instead of tracking this in the image, have a hashmap that just tracks known alive cells.
-
-    // This is such a dumb idea..
-    let cells: Vec<(u32, u32)> = (0..WIDTH)
-        .cartesian_product(0..HEIGHT)
-        .into_iter()
-        .collect();
 
     let style = ProgressStyle::with_template(
-        "[{elapsed_precise} / {eta_precise}] {wide_bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
+        "[{elapsed_precise} / {eta_precise}] {wide_bar:40.cyan/blue} {pos:>7}/{len:7} {per_sec} {msg}",
     )
     .unwrap();
     let m = MultiProgress::new();
     let pb = m.add(ProgressBar::new(FRAMES as u64));
     pb.set_style(style.clone());
-    let pb2 = m.insert_after(&pb, ProgressBar::new(cells.len() as u64));
-    pb2.set_style(style.clone());
 
     m.println("Producing frames").unwrap();
-    for frame in 1..FRAMES {
-        pb.inc(1);
-        let mut current_image = Image::new(WIDTH, HEIGHT, Rgb::white());
-
-        let to_update: Vec<(u32, u32)> = cells
-            .clone()
-            .into_par_iter()
-            .progress_with(pb2.clone())
-            .filter(|cell| evaluate_cell(cell.0, cell.1, previous_image.clone()))
-            .collect();
-        pb2.reset();
-        for cell in to_update {
-            current_image.set_pixel(cell.0, cell.1, Rgb::black());
+    let mut cells: FxHashSet<Cell> = active_cells.into_par_iter().collect();
+    for frame in 0..FRAMES {
+        pb.set_message(format!("Live cells: {}", cells.len()));
+        cells = process_frame(&cells);
+        let mut current_image = Image::new(WIDTH as u32, HEIGHT as u32, Rgb::black());
+        for cell in &cells {
+            current_image.set_pixel(cell.x as u32, cell.y as u32, Rgb::white());
         }
-
         current_image
-            .save_inferred(format!("{OUTPUT_PATH}/{:03}.png", frame))
+            .save_inferred(format!("{OUTPUT_PATH}/{:08}.png", frame))
             .unwrap();
-        previous_image = current_image.clone();
+        pb.inc(1);
     }
 }
 
-fn evaluate_cell(x: u32, y: u32, image: ril::Image<ril::Rgb>) -> bool {
-    let mut neighbour_count = 0;
-    let current_cell_lives = match image.get_pixel(x, y) {
-        Some(pixel) => pixel.as_rgb() == Rgb::black(),
-        None => false,
-    };
+// #[memoize]
+fn produce_neighbours(cell: &Cell) -> Vec<Cell> {
+    let neighbours = vec![
+        // Left column
+        Cell {
+            x: cell.x - 1,
+            y: cell.y - 1,
+        },
+        Cell {
+            x: cell.x - 1,
+            y: cell.y,
+        },
+        Cell {
+            x: cell.x - 1,
+            y: cell.y + 1,
+        },
+        // Central column
+        Cell {
+            x: cell.x,
+            y: cell.y - 1,
+        },
+        Cell {
+            x: cell.x,
+            y: cell.y + 1,
+        },
+        // Right column
+        Cell {
+            x: cell.x + 1,
+            y: cell.y - 1,
+        },
+        Cell {
+            x: cell.x + 1,
+            y: cell.y,
+        },
+        Cell {
+            x: cell.x + 1,
+            y: cell.y + 1,
+        },
+    ];
 
-    for x_offset in -1..=1 {
-        for y_offset in -1..=1 {
-            if !(x_offset == 0 && y_offset == 0) {
-                // Going to assume any invalid pixel is outside of the range of the image
-                // and is also dead
-                let offset_pixel_alive: bool =
-                    match image.get_pixel(x + x_offset as u32, y + y_offset as u32) {
-                        Some(pixel) => pixel.as_rgb() == Rgb::black(),
-                        None => false,
-                    };
-                if offset_pixel_alive {
-                    neighbour_count += 1;
-                };
-            };
-        }
+    neighbours
+        .into_iter()
+        .filter(|cell| !(cell.x < 0 || cell.x >= WIDTH || cell.y < 0 || cell.y >= HEIGHT))
+        .collect()
+}
+
+fn get_neighbour_counts(active_cells: &FxHashSet<Cell>) -> FxHashMap<Cell, u32> {
+    let mut neighbour_counts = FxHashMap::default();
+    for cell in active_cells.into_iter().flat_map(produce_neighbours) {
+        *neighbour_counts.entry(cell).or_insert(0) += 1;
+    }
+    neighbour_counts
+}
+
+fn process_frame(active_cells: &FxHashSet<Cell>) -> FxHashSet<Cell> {
+    let neighbour_counts = get_neighbour_counts(&active_cells);
+
+    neighbour_counts
+        .into_par_iter()
+        .filter_map(
+            |(cell, count)| match (count, active_cells.contains(&cell)) {
+                // If there's 2 neighbours on an active cell, or three neighbours regardless of
+                // state, cell is live
+                (2, true) | (3, ..) => Some(cell),
+                // Otherwise, cell dies, or remains, dead.
+                _ => None,
+            },
+        )
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn blinks() {
+        // Simple blinker
+        let give = FxHashSet::from([
+            Cell { x: 1, y: 2 },
+            Cell { x: 2, y: 2 },
+            Cell { x: 3, y: 2 },
+        ]);
+        let want = FxHashSet::from([
+            Cell { x: 2, y: 1 },
+            Cell { x: 2, y: 2 },
+            Cell { x: 2, y: 3 },
+        ]);
+        let got = process_frame(give.clone());
+        assert_eq!(got, want);
     }
 
-    // Any live cell with two or three live neighbours survives.
-    // Any dead cell with three live neighbours becomes a live cell.
-    // All other live cells die in the next generation. Similarly, all other dead cells stay dead.
-    if current_cell_lives {
-        if neighbour_count == 2 || neighbour_count == 3 {
-            return true;
-        };
-    } else {
-        if neighbour_count == 3 {
-            return true;
-        };
-    };
-    return false;
+    #[test]
+    fn still() {
+        let give = FxHashSet::from([
+            Cell { x: 1, y: 1 },
+            Cell { x: 1, y: 2 },
+            Cell { x: 2, y: 1 },
+            Cell { x: 2, y: 2 },
+        ]);
+        let got = process_frame(give.clone());
+        assert_eq!(got, give);
+    }
 }
