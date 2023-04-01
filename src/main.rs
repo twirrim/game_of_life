@@ -1,14 +1,15 @@
 #[macro_use]
 extern crate lazy_static;
 
-use rustc_hash::{FxHashMap, FxHashSet};
 use std::fs;
+use std::sync::mpsc::sync_channel;
+use std::thread;
 
-use indicatif::{MultiProgress, ProgressBar, ProgressIterator, ProgressStyle};
-// use memoize::memoize;
+use indicatif::{ProgressBar, ProgressIterator, ProgressStyle};
 use rand::Rng;
 use rayon::prelude::*;
 use ril::prelude::*;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 //3840x2160
 const WIDTH: i32 = 3840;
@@ -27,32 +28,41 @@ struct Cell {
 }
 
 fn main() {
-    let mut rng = rand::thread_rng();
+    let (tx, rx) = sync_channel(100);
 
-    fs::create_dir_all(OUTPUT_PATH).unwrap();
-    println!("Starting with {:} cells", *STARTING_CELLS);
-    println!("Randomising starting cells");
+    let simulation = thread::spawn(move || {
+        let mut rng = rand::thread_rng();
+        let starting_cells = ((WIDTH as f32 * HEIGHT as f32) * 0.5) as u32;
 
-    let mut active_cells = FxHashSet::default();
-    for _ in (0..*STARTING_CELLS).progress() {
-        let x = rng.gen_range(0..WIDTH);
-        let y = rng.gen_range(0..HEIGHT);
-        active_cells.insert(Cell { x: x, y: y });
-    }
+        println!("Starting with {:} cells", starting_cells);
+        println!("Randomising starting cells");
+
+        let mut active_cells = FxHashSet::default();
+        for _ in (0..starting_cells).progress() {
+            let x = rng.gen_range(0..WIDTH);
+            let y = rng.gen_range(0..HEIGHT);
+            active_cells.insert(Cell { x: x, y: y });
+        }
+
+        let mut cells: FxHashSet<Cell> = active_cells.into_par_iter().collect();
+        for frame in 0..FRAMES {
+            cells = process_frame(&cells);
+            tx.send((frame, cells.clone())).unwrap();
+        }
+    });
 
     let style = ProgressStyle::with_template(
         "[{elapsed_precise} / {eta_precise}] {wide_bar:40.cyan/blue} {pos:>7}/{len:7} {per_sec} {msg}",
     )
     .unwrap();
-    let m = MultiProgress::new();
-    let pb = m.add(ProgressBar::new(FRAMES as u64));
+
+    fs::create_dir_all(OUTPUT_PATH).unwrap();
+    let pb = ProgressBar::new(FRAMES as u64);
     pb.set_style(style.clone());
 
-    m.println("Producing frames").unwrap();
-    let mut cells: FxHashSet<Cell> = active_cells.into_par_iter().collect();
-    for frame in 0..FRAMES {
+    for (frame, cells) in rx {
         pb.set_message(format!("Live cells: {}", cells.len()));
-        cells = process_frame(&cells);
+
         let mut current_image = Image::new(WIDTH as u32, HEIGHT as u32, Rgb::black());
         for cell in &cells {
             current_image.set_pixel(cell.x as u32, cell.y as u32, Rgb::white());
@@ -62,9 +72,9 @@ fn main() {
             .unwrap();
         pb.inc(1);
     }
+    simulation.join().unwrap();
 }
 
-// #[memoize]
 fn produce_neighbours(cell: &Cell) -> Vec<Cell> {
     let neighbours = vec![
         // Left column
@@ -142,29 +152,29 @@ mod tests {
     #[test]
     fn blinks() {
         // Simple blinker
-        let give = FxHashSet::from([
-            Cell { x: 1, y: 2 },
-            Cell { x: 2, y: 2 },
-            Cell { x: 3, y: 2 },
-        ]);
-        let want = FxHashSet::from([
-            Cell { x: 2, y: 1 },
-            Cell { x: 2, y: 2 },
-            Cell { x: 2, y: 3 },
-        ]);
-        let got = process_frame(give.clone());
+        let mut give = FxHashSet::default();
+        give.insert(Cell { x: 1, y: 2 });
+        give.insert(Cell { x: 2, y: 2 });
+        give.insert(Cell { x: 3, y: 2 });
+
+        let mut want = FxHashSet::default();
+        want.insert(Cell { x: 2, y: 1 });
+        want.insert(Cell { x: 2, y: 2 });
+        want.insert(Cell { x: 2, y: 3 });
+
+        let got = process_frame(&give);
         assert_eq!(got, want);
     }
 
     #[test]
     fn still() {
-        let give = FxHashSet::from([
-            Cell { x: 1, y: 1 },
-            Cell { x: 1, y: 2 },
-            Cell { x: 2, y: 1 },
-            Cell { x: 2, y: 2 },
-        ]);
-        let got = process_frame(give.clone());
+        let mut give = FxHashSet::default();
+        give.insert(Cell { x: 1, y: 1 });
+        give.insert(Cell { x: 1, y: 2 });
+        give.insert(Cell { x: 2, y: 1 });
+        give.insert(Cell { x: 2, y: 2 });
+
+        let got = process_frame(&give);
         assert_eq!(got, give);
     }
 }
