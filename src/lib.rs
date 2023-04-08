@@ -111,4 +111,62 @@ mod tests {
         let got = process_frame(&give);
         assert_eq!(got, give);
     }
+
+    #[test]
+    fn test_produce_neighbours_simple() {
+        let give = Cell { x: 2, y: 2 };
+        // Should get [(1,1), ((1,2), (1, 3)
+        //             (2,1), (2,3),
+        //             (3,1), (3,2),(3,3)]
+        let want = vec![
+            Cell { x: 1, y: 1 },
+            Cell { x: 1, y: 2 },
+            Cell { x: 1, y: 3 },
+            Cell { x: 2, y: 1 },
+            Cell { x: 2, y: 3 },
+            Cell { x: 3, y: 1 },
+            Cell { x: 3, y: 2 },
+            Cell { x: 3, y: 3 },
+        ];
+        let got = produce_neighbours(&give);
+        assert_eq!(want, got);
+    }
+
+    #[test]
+    fn test_produce_neighbours_edge() {
+        let give = Cell { x: 0, y: 0 };
+        // Should get [(0,1), ((1,0), (1, 1)]
+        let want = vec![
+            Cell { x: 0, y: 1 },
+            Cell { x: 1, y: 0 },
+            Cell { x: 1, y: 1 },
+        ];
+        let got = produce_neighbours(&give);
+        assert_eq!(want, got);
+    }
+
+    #[test]
+    fn test_get_neighbour_counts_basic() {
+        let mut give = FxHashSet::default();
+        give.insert(Cell { x: 2, y: 2 });
+        give.insert(Cell { x: 2, y: 3 });
+
+        let mut want = FxHashMap::default();
+        want.insert(Cell { x: 1, y: 1 }, 1);
+        want.insert(Cell { x: 1, y: 2 }, 2);
+        want.insert(Cell { x: 1, y: 3 }, 2);
+        want.insert(Cell { x: 1, y: 4 }, 1);
+        want.insert(Cell { x: 2, y: 1 }, 1);
+        want.insert(Cell { x: 2, y: 2 }, 1);
+        want.insert(Cell { x: 2, y: 3 }, 1);
+        want.insert(Cell { x: 2, y: 4 }, 1);
+        want.insert(Cell { x: 3, y: 1 }, 1);
+        want.insert(Cell { x: 3, y: 2 }, 2);
+        want.insert(Cell { x: 3, y: 3 }, 2);
+        want.insert(Cell { x: 3, y: 4 }, 1);
+
+        let got = get_neighbour_counts(&give);
+
+        assert_eq!(want, got);
+    }
 }
