@@ -10,48 +10,34 @@ use crate::consts::{HEIGHT, WIDTH};
 use crate::structs::Cell;
 
 fn produce_neighbours(cell: &Cell) -> Vec<Cell> {
-    let neighbours = vec![
-        // Left column
-        Cell {
-            x: cell.x - 1,
-            y: cell.y - 1,
-        },
-        Cell {
-            x: cell.x - 1,
-            y: cell.y,
-        },
-        Cell {
-            x: cell.x - 1,
-            y: cell.y + 1,
-        },
-        // Central column
-        Cell {
-            x: cell.x,
-            y: cell.y - 1,
-        },
-        Cell {
-            x: cell.x,
-            y: cell.y + 1,
-        },
-        // Right column
-        Cell {
-            x: cell.x + 1,
-            y: cell.y - 1,
-        },
-        Cell {
-            x: cell.x + 1,
-            y: cell.y,
-        },
-        Cell {
-            x: cell.x + 1,
-            y: cell.y + 1,
-        },
+    let offsets = vec![
+        (-1, -1),
+        (-1, 0),
+        (-1, 1),
+        (0, -1),
+        (0, 1),
+        (1, -1),
+        (1, 0),
+        (1, 1),
     ];
 
+    let mut neighbours = vec![];
+    for (x, y) in offsets {
+        if
+        // Catch overflows and underflows, and off-the-edge-of-map
+        ((cell.x == i32::MAX || cell.x == WIDTH) && x == 1)
+            || ((cell.y == i32::MAX || cell.y == HEIGHT) && y == 1)
+            || (cell.x == 0 && x == -1)
+            || (cell.y == 0 && y == -1)
+        {
+            continue;
+        }
+        neighbours.push(Cell {
+            x: cell.x + x,
+            y: cell.y + y,
+        });
+    }
     neighbours
-        .into_iter()
-        .filter(|cell| !(cell.x < 0 || cell.x >= WIDTH || cell.y < 0 || cell.y >= HEIGHT))
-        .collect()
 }
 
 fn get_neighbour_counts(active_cells: &FxHashSet<Cell>) -> FxHashMap<Cell, u32> {
@@ -81,6 +67,7 @@ pub fn process_frame(active_cells: &FxHashSet<Cell>) -> FxHashSet<Cell> {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     #[test]
@@ -115,9 +102,6 @@ mod tests {
     #[test]
     fn test_produce_neighbours_simple() {
         let give = Cell { x: 2, y: 2 };
-        // Should get [(1,1), ((1,2), (1, 3)
-        //             (2,1), (2,3),
-        //             (3,1), (3,2),(3,3)]
         let want = vec![
             Cell { x: 1, y: 1 },
             Cell { x: 1, y: 2 },
@@ -133,13 +117,36 @@ mod tests {
     }
 
     #[test]
-    fn test_produce_neighbours_edge() {
+    fn test_produce_neighbours_edges() {
         let give = Cell { x: 0, y: 0 };
         // Should get [(0,1), ((1,0), (1, 1)]
         let want = vec![
             Cell { x: 0, y: 1 },
             Cell { x: 1, y: 0 },
             Cell { x: 1, y: 1 },
+        ];
+        let got = produce_neighbours(&give);
+        assert_eq!(want, got);
+
+        // Overflow check!
+        let give = Cell {
+            x: i32::MAX,
+            y: i32::MAX,
+        };
+        // Should get [(i32::MAX - 1, i32::MAX -1), (i32::MAX -1, i32::MAX), (i32::MAX, i32::MAX -1)]
+        let want = vec![
+            Cell {
+                x: i32::MAX - 1,
+                y: i32::MAX - 1,
+            },
+            Cell {
+                x: i32::MAX - 1,
+                y: i32::MAX,
+            },
+            Cell {
+                x: i32::MAX,
+                y: i32::MAX - 1,
+            },
         ];
         let got = produce_neighbours(&give);
         assert_eq!(want, got);
