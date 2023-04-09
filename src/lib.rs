@@ -25,8 +25,8 @@ fn produce_neighbours(cell: &Cell) -> Vec<Cell> {
     for (x, y) in offsets {
         if
         // Catch overflows and underflows, and off-the-edge-of-map
-        ((cell.x == i32::MAX || cell.x == WIDTH) && x == 1)
-            || ((cell.y == i32::MAX || cell.y == HEIGHT) && y == 1)
+        ((cell.x == i32::MAX || cell.x >= WIDTH - 1) && x == 1)
+            || ((cell.y == i32::MAX || cell.y >= HEIGHT - 1) && y == 1)
             || (cell.x == 0 && x == -1)
             || (cell.y == 0 && y == -1)
         {
