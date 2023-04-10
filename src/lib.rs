@@ -3,7 +3,11 @@ pub mod structs;
 
 extern crate lazy_static;
 
+use std::cmp;
+use std::thread::available_parallelism;
+
 use rayon::prelude::*;
+
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::consts::{HEIGHT, WIDTH};
@@ -40,10 +44,34 @@ fn produce_neighbours(cell: &Cell) -> Vec<Cell> {
     neighbours
 }
 
+fn batch_produce_neighbours(cells: Vec<Cell>) -> FxHashMap<Cell, u32> {
+    let mut neighbour_counts = FxHashMap::default();
+    for cell in cells {
+        for neighbour in produce_neighbours(&cell) {
+            *neighbour_counts.entry(neighbour).or_insert(0) += 1;
+        }
+    }
+    neighbour_counts
+}
+
 fn get_neighbour_counts(active_cells: &FxHashSet<Cell>) -> FxHashMap<Cell, u32> {
     let mut neighbour_counts = FxHashMap::default();
-    for cell in active_cells.into_iter().flat_map(produce_neighbours) {
-        *neighbour_counts.entry(cell).or_insert(0) += 1;
+    let chunk_size: usize = cmp::max(
+        (active_cells.len() as f32 / available_parallelism().unwrap().get() as f32) as usize,
+        10,
+    );
+    let collection: Vec<FxHashMap<Cell, u32>> = active_cells
+        .clone()
+        .into_iter()
+        .collect::<Vec<Cell>>()
+        .into_par_iter()
+        .chunks(chunk_size)
+        .map(batch_produce_neighbours)
+        .collect();
+    for map in collection {
+        for (key, value) in map {
+            *neighbour_counts.entry(key).or_insert(0) += value;
+        }
     }
     neighbour_counts
 }
@@ -52,7 +80,7 @@ pub fn process_frame(active_cells: &FxHashSet<Cell>) -> FxHashSet<Cell> {
     let neighbour_counts = get_neighbour_counts(&active_cells);
 
     neighbour_counts
-        .into_par_iter()
+        .into_iter()
         .filter_map(
             |(cell, count)| match (count, active_cells.contains(&cell)) {
                 // If there's 2 neighbours on an active cell, or three neighbours regardless of
