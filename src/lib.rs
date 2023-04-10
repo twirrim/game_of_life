@@ -14,7 +14,7 @@ use crate::consts::{HEIGHT, WIDTH};
 use crate::structs::Cell;
 
 pub fn initialise(starting_cells: u32) -> FxHashSet<Cell> {
-    let active_cells: Vec<Cell> = (0..starting_cells)
+    let active_cells: FxHashSet<Cell> = (0..starting_cells)
         .into_par_iter()
         .map(|_| {
             let mut rng = rand::thread_rng();
@@ -24,7 +24,7 @@ pub fn initialise(starting_cells: u32) -> FxHashSet<Cell> {
         })
         .collect();
 
-    active_cells.into_par_iter().collect()
+    active_cells
 }
 
 fn produce_neighbours(cell: &Cell) -> Vec<Cell> {
