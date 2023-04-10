@@ -6,12 +6,26 @@ extern crate lazy_static;
 use std::cmp;
 use std::thread::available_parallelism;
 
+use rand::Rng;
 use rayon::prelude::*;
-
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::consts::{HEIGHT, WIDTH};
 use crate::structs::Cell;
+
+pub fn initialise(starting_cells: u32) -> FxHashSet<Cell> {
+    let active_cells: Vec<Cell> = (0..starting_cells)
+        .into_par_iter()
+        .map(|_| {
+            let mut rng = rand::thread_rng();
+            let x = rng.gen_range(0..WIDTH);
+            let y = rng.gen_range(0..HEIGHT);
+            Cell { x, y }
+        })
+        .collect();
+
+    active_cells.into_par_iter().collect()
+}
 
 fn produce_neighbours(cell: &Cell) -> Vec<Cell> {
     let offsets = vec![
@@ -62,7 +76,7 @@ fn get_neighbour_counts(active_cells: &FxHashSet<Cell>) -> FxHashMap<Cell, u32> 
     );
     let collection: Vec<FxHashMap<Cell, u32>> = active_cells
         .clone()
-        .into_iter()
+        .into_par_iter()
         .collect::<Vec<Cell>>()
         .into_par_iter()
         .chunks(chunk_size)
