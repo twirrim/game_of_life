@@ -36,12 +36,8 @@ fn main() {
         pb.set_message(format!("Live cells: {}", cells.len()));
 
         let mut current_image = Image::new(WIDTH as u32, HEIGHT as u32, Rgb::black());
-        for x_index in 0..cells.len() {
-            for y_index in 0..cells[x_index].len() {
-                if cells[x_index][y_index].alive {
-                    current_image.set_pixel(x_index as u32, y_index as u32, Rgb::white());
-                };
-            }
+        for cell in &cells {
+            current_image.set_pixel(cell.x as u32, cell.y as u32, Rgb::white());
         }
         current_image
             .save_inferred(format!("{OUTPUT_PATH}/{:08}.png", frame))

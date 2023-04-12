@@ -1,8 +1,7 @@
-pub type Colony = Vec<Vec<State>>;
+use serde::Deserialize;
 
-// Should probably implement methods around this
-#[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy)]
-pub struct State {
-    pub neighbour_count: u8,
-    pub alive: bool,
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy, Deserialize)]
+pub struct Cell {
+    pub x: i32,
+    pub y: i32,
 }
