@@ -16,9 +16,9 @@ fn main() {
         println!("Starting with {:} cells", starting_cells);
         println!("Randomising starting cells");
 
-        let mut cells = initialise(starting_cells);
+        let mut cells = initialise(starting_cells, WIDTH, HEIGHT);
         for frame in 0..FRAMES {
-            cells = process_frame(&cells);
+            process_frame(&mut cells);
             tx.send((frame, cells.clone())).unwrap();
         }
     });
@@ -30,19 +30,26 @@ fn main() {
 
     fs::create_dir_all(OUTPUT_PATH).unwrap();
     let pb = ProgressBar::new(FRAMES as u64);
-    pb.set_style(style.clone());
+    pb.set_style(style);
 
-    for (frame, cells) in rx {
-        pb.set_message(format!("Live cells: {}", cells.len()));
-
+    for (frame, colony) in rx {
+        let mut live_cells = 0;
         let mut current_image = Image::new(WIDTH as u32, HEIGHT as u32, Rgb::black());
-        for cell in &cells {
-            current_image.set_pixel(cell.x as u32, cell.y as u32, Rgb::white());
+        // Again, should be able to paralellise finding the live cells.
+        for (x, row) in colony.cells.iter().enumerate() {
+            for (y, cell) in row.iter().enumerate() {
+                if cell.alive {
+                    live_cells += 1;
+                    current_image.set_pixel(x as u32, y as u32, Rgb::white());
+                };
+            }
         }
+
         current_image
             .save_inferred(format!("{OUTPUT_PATH}/{:08}.png", frame))
             .unwrap();
         pb.inc(1);
+        pb.set_message(format!("Live cells: {}", live_cells));
     }
     simulation.join().unwrap();
 }
