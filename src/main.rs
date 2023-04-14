@@ -3,6 +3,8 @@ use std::sync::mpsc::sync_channel;
 use std::thread;
 
 use indicatif::{ProgressBar, ProgressStyle};
+use rayon::iter::ParallelBridge;
+use rayon::prelude::*;
 use ril::prelude::*;
 
 use gol::consts::{FRAMES, HEIGHT, OUTPUT_PATH, WIDTH};
@@ -32,24 +34,44 @@ fn main() {
     let pb = ProgressBar::new(FRAMES as u64);
     pb.set_style(style);
 
-    for (frame, colony) in rx {
-        let mut live_cells = 0;
+    // let mut output: Vec<&'static str> = rx.into_iter().par_bridge().collect();
+
+    let collector = rx.into_iter().par_bridge();
+
+    collector.for_each(|(frame, colony)| {
         let mut current_image = Image::new(WIDTH as u32, HEIGHT as u32, Rgb::black());
-        // Again, should be able to paralellise finding the live cells.
         for (x, row) in colony.cells.iter().enumerate() {
             for (y, cell) in row.iter().enumerate() {
                 if cell.alive {
-                    live_cells += 1;
                     current_image.set_pixel(x as u32, y as u32, Rgb::white());
-                };
+                }
             }
         }
-
         current_image
             .save_inferred(format!("{OUTPUT_PATH}/{:08}.png", frame))
             .unwrap();
         pb.inc(1);
-        pb.set_message(format!("Live cells: {}", live_cells));
-    }
+    });
+
+    /* for (frame, colony) in rx {
+           let mut live_cells = 0;
+           let mut current_image = Image::new(WIDTH as u32, HEIGHT as u32, Rgb::black());
+           // Again, should be able to paralellise finding the live cells.
+           for (x, row) in colony.cells.iter().enumerate() {
+               for (y, cell) in row.iter().enumerate() {
+                   if cell.alive {
+                       live_cells += 1;
+                       current_image.set_pixel(x as u32, y as u32, Rgb::white());
+                   };
+               }
+           }
+
+           current_image
+               .save_inferred(format!("{OUTPUT_PATH}/{:08}.png", frame))
+               .unwrap();
+           pb.inc(1);
+           pb.set_message(format!("Live cells: {}", live_cells));
+       }
+    */
     simulation.join().unwrap();
 }

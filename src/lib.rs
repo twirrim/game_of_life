@@ -9,6 +9,7 @@ pub fn initialise(starting_cells: u32, width: usize, height: usize) -> Colony {
     // Make a colony of the specified size, all dead
     let mut colony = Colony::new(width, height);
     let mut rng = rand::thread_rng();
+    // for _ in 0..starting_cells {
     for _ in 0..starting_cells {
         let x = rng.gen_range(0..width);
         let y = rng.gen_range(0..height);
