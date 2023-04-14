@@ -1,8 +1,6 @@
 pub mod consts;
 pub mod structs;
 
-extern crate lazy_static;
-
 use rand::Rng;
 
 use crate::structs::Colony;

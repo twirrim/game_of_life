@@ -8,8 +8,9 @@ const HEIGHT: usize = 2160;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     // Benchmark the init process
-    c.bench_function("init 480000", |b| b.iter(|| initialise(480_000, WIDTH, HEIGHT)));
-    c.bench_function("init 4800000", |b| b.iter(|| initialise(4_800_000, WIDTH, HEIGHT)));
+    c.bench_function("init 480000", |b| {
+        b.iter(|| initialise(480_000, WIDTH, HEIGHT))
+    });
 
     // Benchmark simple spinner
     let mut colony = Colony::new(WIDTH, HEIGHT);

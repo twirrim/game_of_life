@@ -1,5 +1,16 @@
 use std::fmt;
 
+const OFFSETS: [(i32, i32); 8] = [
+    (-1, -1),
+    (-1, 0),
+    (-1, 1),
+    (0, -1),
+    (0, 1),
+    (1, -1),
+    (1, 0),
+    (1, 1),
+];
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy)]
 pub struct State {
     pub alive: bool,
@@ -47,17 +58,7 @@ impl Colony {
         self.cells[x as usize][y as usize].alive = state;
 
         // Update the neighbour counts
-        let offsets = vec![
-            (-1, -1),
-            (-1, 0),
-            (-1, 1),
-            (0, -1),
-            (0, 1),
-            (1, -1),
-            (1, 0),
-            (1, 1),
-        ];
-        for (off_x, off_y) in offsets {
+        for (off_x, off_y) in OFFSETS {
             // Argh more fun with type casting
             if ((x >= self.cells.len() as i32 - 1) && off_x == 1)
                 || ((y >= self.cells[x as usize].len() as i32 - 1) && off_y == 1)
