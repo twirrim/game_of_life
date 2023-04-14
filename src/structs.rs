@@ -1,13 +1,6 @@
-use serde::Deserialize;
 use std::fmt;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy, Deserialize)]
-pub struct Cell {
-    pub x: i32,
-    pub y: i32,
-}
-
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy, Deserialize)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy)]
 pub struct State {
     pub alive: bool,
     pub neighbours: usize,
@@ -23,7 +16,7 @@ impl fmt::Display for State {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Deserialize)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct Colony {
     pub cells: Vec<Vec<State>>,
 }
