@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use std::fmt;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy, Deserialize)]
 pub struct Cell {
@@ -10,6 +11,16 @@ pub struct Cell {
 pub struct State {
     pub alive: bool,
     pub neighbours: usize,
+}
+
+impl fmt::Display for State {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let alive = match &self.alive {
+            false => '\u{274C}',
+            true => '\u{2705}',
+        };
+        write!(f, "{alive},{}", &self.neighbours)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Deserialize)]
@@ -37,7 +48,6 @@ impl Colony {
 
     fn set_target_state(&mut self, x: i32, y: i32, state: bool) {
         if self.cells[x as usize][y as usize].alive == state {
-            println!("Already in that state: {state}");
             return;
         };
         // Make it live/die
@@ -63,7 +73,6 @@ impl Colony {
             {
                 continue;
             };
-            println!("Setting {}, {} to {}", x + off_x, y + off_y, state);
             if state {
                 self.cells[(x + off_x) as usize][(y + off_y) as usize].neighbours += 1;
             } else {
@@ -84,6 +93,25 @@ impl Colony {
         for row in &self.cells {
             println!("{:?}", row);
         }
+    }
+}
+
+impl fmt::Display for Colony {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut output = vec![];
+        for row in &self.cells {
+            let mut row_out = vec![];
+            for cell in row {
+                let alive = match cell.alive {
+                    false => '\u{274C}',
+                    true => '\u{2705}',
+                };
+                row_out.push(format!("{alive}, {}", cell.neighbours));
+            }
+            row_out.push(String::from("\n"));
+            output.push(row_out.join(" "));
+        }
+        write!(f, "{}", output.join(""))
     }
 }
 
