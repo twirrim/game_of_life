@@ -1,5 +1,7 @@
 use std::fmt;
 
+use ansi_term::Colour::{Green, Red};
+
 const OFFSETS: [(i32, i32); 8] = [
     (-1, -1),
     (-1, 0),
@@ -13,6 +15,7 @@ const OFFSETS: [(i32, i32); 8] = [
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy)]
 pub struct State {
+    pub life_left: u8,
     pub alive: bool,
     pub neighbours: usize,
 }
@@ -20,10 +23,10 @@ pub struct State {
 impl fmt::Display for State {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let alive = match &self.alive {
-            false => '\u{274C}',
-            true => '\u{2705}',
+            false => Red.paint("\u{274C}"),
+            true => Green.paint("\u{2705}"),
         };
-        write!(f, "{alive},{}", &self.neighbours)
+        write!(f, "{alive},{},{:03}", &self.neighbours, &self.life_left)
     }
 }
 
@@ -40,6 +43,7 @@ impl Colony {
             cells: vec![
                 vec![
                     State {
+                        life_left: 0,
                         alive: false,
                         neighbours: 0
                     };
@@ -56,6 +60,9 @@ impl Colony {
         };
         // Make it live/die
         self.cells[x as usize][y as usize].alive = state;
+        if state {
+            self.cells[x as usize][y as usize].life_left = 255;
+        }
 
         // Update the neighbour counts
         for (off_x, off_y) in OFFSETS {
@@ -83,6 +90,10 @@ impl Colony {
         self.set_target_state(x as i32, y as i32, false);
     }
 
+    pub fn reduce_life(&mut self, x: usize, y: usize) {
+        self.cells[x][y].life_left -= 1;
+    }
+
     pub fn print(&self) {
         for row in &self.cells {
             println!("{:?}", row);
@@ -97,13 +108,13 @@ impl fmt::Display for Colony {
             let mut row_out = vec![];
             for cell in row {
                 let alive = match cell.alive {
-                    false => '\u{274C}',
-                    true => '\u{2705}',
+                    false => Red.paint("\u{274C}"),
+                    true => Green.paint("\u{2705}"),
                 };
-                row_out.push(format!("{alive}, {}", cell.neighbours));
+                row_out.push(format!("{alive},{},{:03}", cell.neighbours, cell.life_left))
             }
             row_out.push(String::from("\n"));
-            output.push(row_out.join(" "));
+            output.push(row_out.join("|"));
         }
         write!(f, "{}", output.join(""))
     }
@@ -125,6 +136,7 @@ mod tests {
                 println!("{x},{y}");
                 if x == 1 && y == 1 {
                     assert!(colony.cells[x][y].alive);
+                    assert_eq!(colony.cells[x][y].life_left, 255);
                 } else {
                     assert!(!colony.cells[x][y].alive);
                 };
