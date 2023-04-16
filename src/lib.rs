@@ -1,7 +1,12 @@
 pub mod consts;
 pub mod structs;
 
+extern crate ansi_term;
+extern crate crossbeam_channel;
+
+use crossbeam_channel::unbounded;
 use rand::Rng;
+use rayon::prelude::*;
 
 use crate::structs::Colony;
 
@@ -19,24 +24,34 @@ pub fn initialise(starting_cells: u32, width: usize, height: usize) -> Colony {
 }
 
 pub fn process_frame(colony: &mut Colony) {
-    // TODO: Parallelise this?  Could maybe use a parallelised filter to find the cells that need to be updated,
-    // then do that in a sequential loop?  This also helps avoid a clone of the colony
-    // In fact... let's start out towards that way...
-    let mut make_alive: Vec<(usize, usize)> = vec![];
-    let mut make_dead: Vec<(usize, usize)> = vec![];
-    for (x, row) in colony.cells.iter().enumerate() {
+    // Make some channels
+    let (tx_alive, rx_alive) = unbounded();
+    let (tx_dead, rx_dead) = unbounded();
+    let (tx_reduce, rx_reduce) = unbounded();
+
+    colony.cells.iter().enumerate().for_each(|(x, row)| {
         for (y, cell) in row.iter().enumerate() {
             if (cell.alive && cell.neighbours == 2) || cell.neighbours == 3 {
-                make_alive.push((x, y));
+                tx_alive.send((x, y)).unwrap();
             } else if cell.alive {
-                make_dead.push((x, y));
+                tx_dead.send((x, y)).unwrap();
+            } else if !cell.alive && cell.life_left > 0 {
+                tx_reduce.send((x, y)).unwrap();
             };
         }
+    });
+    drop(tx_alive);
+    drop(tx_dead);
+    drop(tx_reduce);
+
+    // Update the cell state
+    while let Ok((x, y)) = rx_reduce.recv() {
+        colony.reduce_life(x, y);
     }
-    for (x, y) in make_alive {
+    while let Ok((x, y)) = rx_alive.recv() {
         colony.make_alive(x, y);
     }
-    for (x, y) in make_dead {
+    while let Ok((x, y)) = rx_dead.recv() {
         colony.make_dead(x, y);
     }
 }
@@ -54,9 +69,11 @@ mod tests {
         starter.make_alive(3, 2);
         println!("{starter}");
 
-        let mut want = Colony::new(5, 5);
+        // Easiest way to deal with the life/decay stuff.  Walk through the process!
+        let mut want = starter.clone();
+        want.make_dead(1, 2);
+        want.make_dead(3, 2);
         want.make_alive(2, 1);
-        want.make_alive(2, 2);
         want.make_alive(2, 3);
 
         let mut got = starter.clone();
