@@ -31,7 +31,7 @@ pub fn process_frame(colony: &mut Colony) {
 
     colony.cells.iter().enumerate().for_each(|(x, row)| {
         for (y, cell) in row.iter().enumerate() {
-            if (cell.alive && cell.neighbours == 2) || cell.neighbours == 3 {
+            if (cell.alive && cell.neighbour_count == 2) || cell.neighbour_count == 3 {
                 tx_alive.send((x, y)).unwrap();
             } else if cell.alive {
                 tx_dead.send((x, y)).unwrap();

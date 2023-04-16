@@ -13,11 +13,13 @@ const OFFSETS: [(i32, i32); 8] = [
     (1, 1),
 ];
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy)]
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct State {
     pub life_left: u8,
     pub alive: bool,
-    pub neighbours: usize,
+    pub neighbour_count: usize,
+    pub neighbours: Vec<(usize, usize)>,
 }
 
 impl fmt::Display for State {
@@ -26,7 +28,7 @@ impl fmt::Display for State {
             false => Red.paint("\u{274C}"),
             true => Green.paint("\u{2705}"),
         };
-        write!(f, "{alive},{},{:03}", &self.neighbours, &self.life_left)
+        write!(f, "{alive},{},{:03}", &self.neighbour_count, &self.life_left)
     }
 }
 
@@ -35,50 +37,64 @@ pub struct Colony {
     pub cells: Vec<Vec<State>>,
 }
 
+fn produce_neighbours(x: usize, y: usize, width: usize, height: usize) -> Vec<(usize, usize)>{
+    let mut neighbours = vec![];
+    for (off_x, off_y) in OFFSETS {
+        // Argh more fun with type casting
+        if ((x as i32 >= width as i32 - 1) && off_x == 1)
+            || ((y as i32 >= height as i32 - 1) && off_y == 1)
+            || (x == 0 && off_x == -1)
+            || (y == 0 && off_y == -1)
+        {
+            continue;
+        };
+        neighbours.push(((x as i32 + off_x) as usize, (y as i32 +off_y) as usize));
+    }
+    neighbours
+}
+
 impl Colony {
     pub fn new(width: usize, height: usize) -> Colony {
-        // Really don't like the way rustfmt is formatting this!
-        // It's: vec![vec![State { alive: false, neighbours: 0 }; height]; width]
-        Colony {
+        let mut colony = Colony {
             cells: vec![
                 vec![
                     State {
                         life_left: 0,
                         alive: false,
-                        neighbours: 0
+                        neighbour_count: 0,
+                        neighbours: vec![],
                     };
                     height
                 ];
                 width
             ],
+        };
+        for x in 0..width {
+            for y in 0..height {
+                colony.cells[x][y].neighbours = produce_neighbours(x, y, width, height);
+            }
         }
+        colony
     }
 
     fn set_target_state(&mut self, x: i32, y: i32, state: bool) {
-        if self.cells[x as usize][y as usize].alive == state {
+        let x = x as usize;
+        let y = y as usize;
+        if self.cells[x][y].alive == state {
             return;
         };
         // Make it live/die
-        self.cells[x as usize][y as usize].alive = state;
+        self.cells[x][y].alive = state;
         if state {
-            self.cells[x as usize][y as usize].life_left = 255;
+            self.cells[x][y].life_left = 255;
         }
-
-        // Update the neighbour counts
-        for (off_x, off_y) in OFFSETS {
-            // Argh more fun with type casting
-            if ((x >= self.cells.len() as i32 - 1) && off_x == 1)
-                || ((y >= self.cells[x as usize].len() as i32 - 1) && off_y == 1)
-                || (x == 0 && off_x == -1)
-                || (y == 0 && off_y == -1)
-            {
-                continue;
-            };
+        for (x, y) in self.cells[x][y].neighbours.clone().iter(){
             if state {
-                self.cells[(x + off_x) as usize][(y + off_y) as usize].neighbours += 1;
+                self.cells[x.clone()][y.clone()].neighbour_count += 1;
             } else {
-                self.cells[(x + off_x) as usize][(y + off_y) as usize].neighbours -= 1;
+                self.cells[x.clone()][y.clone()].neighbour_count -= 1;
             };
+
         }
     }
 
@@ -115,7 +131,7 @@ impl fmt::Display for Colony {
                     false => Red.paint("\u{274C}"),
                     true => Green.paint("\u{2705}"),
                 };
-                row_out.push(format!("{alive},{},{:03}", cell.neighbours, cell.life_left))
+                row_out.push(format!("{alive},{},{:03}", cell.neighbour_count, cell.life_left))
             }
             row_out.push(String::from("\n"));
             output.push(row_out.join("|"));
@@ -152,9 +168,9 @@ mod tests {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
                 if x == 1 && y == 1 {
-                    assert_eq!(colony.cells[x][y].neighbours, 0);
+                    assert_eq!(colony.cells[x][y].neighbour_count, 0);
                 } else {
-                    assert_eq!(colony.cells[x][y].neighbours, 1);
+                    assert_eq!(colony.cells[x][y].neighbour_count, 1);
                 };
             }
         }
@@ -178,7 +194,7 @@ mod tests {
         for x in 0..colony.cells.len() {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
-                assert_eq!(colony.cells[x][y].neighbours, 0)
+                assert_eq!(colony.cells[x][y].neighbour_count, 0)
             }
         }
     }
@@ -206,9 +222,9 @@ mod tests {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
                 if (x == 0 && y == 0) || x == 2 || y == 2 {
-                    assert_eq!(colony.cells[x][y].neighbours, 0);
+                    assert_eq!(colony.cells[x][y].neighbour_count, 0);
                 } else {
-                    assert_eq!(colony.cells[x][y].neighbours, 1);
+                    assert_eq!(colony.cells[x][y].neighbour_count, 1);
                 };
             }
         }
@@ -229,7 +245,7 @@ mod tests {
         for x in 0..colony.cells.len() {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
-                assert_eq!(colony.cells[x][y].neighbours, 0)
+                assert_eq!(colony.cells[x][y].neighbour_count, 0)
             }
         }
     }
@@ -255,12 +271,12 @@ mod tests {
                 println!("{x},{y}");
                 if x >= 13 && x <= 15 && y >= 13 && y <= 15 {
                     if x == 14 && y == 14 {
-                        assert_eq!(colony.cells[x][y].neighbours, 0);
+                        assert_eq!(colony.cells[x][y].neighbour_count, 0);
                     } else {
-                        assert_eq!(colony.cells[x][y].neighbours, 1);
+                        assert_eq!(colony.cells[x][y].neighbour_count, 1);
                     };
                 } else {
-                    assert_eq!(colony.cells[x][y].neighbours, 0);
+                    assert_eq!(colony.cells[x][y].neighbour_count, 0);
                 };
             }
         }
@@ -281,7 +297,7 @@ mod tests {
         for x in 0..colony.cells.len() {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
-                assert_eq!(colony.cells[x][y].neighbours, 0)
+                assert_eq!(colony.cells[x][y].neighbour_count, 0)
             }
         }
     }
@@ -310,9 +326,9 @@ mod tests {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
                 if x == 1 && y == 1 {
-                    assert_eq!(colony.cells[x][y].neighbours, 0);
+                    assert_eq!(colony.cells[x][y].neighbour_count, 0);
                 } else {
-                    assert_eq!(colony.cells[x][y].neighbours, 1);
+                    assert_eq!(colony.cells[x][y].neighbour_count, 1);
                 };
             }
         }
@@ -336,7 +352,7 @@ mod tests {
         println!("Checking counts");
         for x in 0..colony.cells.len() {
             for y in 0..colony.cells[x].len() {
-                assert_eq!(colony.cells[x][y].neighbours, 0);
+                assert_eq!(colony.cells[x][y].neighbour_count, 0);
             }
         }
     }
