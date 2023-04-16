@@ -47,8 +47,12 @@ fn main() {
             for (y, cell) in row.iter().enumerate() {
                 if cell.alive {
                     live_cells += 1;
-                    current_image.set_pixel(x as u32, y as u32, Rgb::white());
-                }
+                };
+                current_image.set_pixel(
+                    x as u32,
+                    y as u32,
+                    Rgb::new(cell.life_left, cell.life_left, cell.life_left),
+                );
             }
         }
         current_image

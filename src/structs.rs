@@ -91,7 +91,11 @@ impl Colony {
     }
 
     pub fn reduce_life(&mut self, x: usize, y: usize) {
-        self.cells[x][y].life_left -= 1;
+        if self.cells[x][y].life_left >= 20 {
+            self.cells[x][y].life_left -= 20;
+        } else {
+            self.cells[x][y].life_left = 0;
+        };
     }
 
     pub fn print(&self) {
