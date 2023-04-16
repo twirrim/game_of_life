@@ -6,7 +6,6 @@ extern crate crossbeam_channel;
 
 use crossbeam_channel::unbounded;
 use rand::Rng;
-use rayon::prelude::*;
 
 use crate::structs::Colony;
 
