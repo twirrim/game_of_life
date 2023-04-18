@@ -2,9 +2,9 @@ pub mod consts;
 pub mod structs;
 
 extern crate ansi_term;
-extern crate crossbeam_channel;
+// extern crate crossbeam_channel;
 
-use crossbeam_channel::unbounded;
+// use crossbeam_channel::unbounded;
 use rand::Rng;
 
 use crate::structs::Colony;
@@ -23,34 +23,29 @@ pub fn initialise(starting_cells: u32, width: usize, height: usize) -> Colony {
 }
 
 pub fn process_frame(colony: &mut Colony) {
-    // Make some channels
-    let (tx_alive, rx_alive) = unbounded();
-    let (tx_dead, rx_dead) = unbounded();
-    let (tx_reduce, rx_reduce) = unbounded();
+    let mut to_live = vec![];
+    let mut to_die = vec![];
+    let mut to_reduce = vec![];
 
     colony.cells.iter().enumerate().for_each(|(x, row)| {
         for (y, cell) in row.iter().enumerate() {
             if (cell.alive && cell.neighbours == 2) || cell.neighbours == 3 {
-                tx_alive.send((x, y)).unwrap();
+                to_live.push((x, y));
             } else if cell.alive {
-                tx_dead.send((x, y)).unwrap();
+                to_die.push((x, y));
             } else if !cell.alive && cell.life_left > 0 {
-                tx_reduce.send((x, y)).unwrap();
+                to_reduce.push((x, y));
             };
         }
     });
-    drop(tx_alive);
-    drop(tx_dead);
-    drop(tx_reduce);
-
     // Update the cell state
-    while let Ok((x, y)) = rx_reduce.recv() {
+    for (x, y) in to_reduce {
         colony.reduce_life(x, y);
     }
-    while let Ok((x, y)) = rx_alive.recv() {
+    for (x, y) in to_live {
         colony.make_alive(x, y);
     }
-    while let Ok((x, y)) = rx_dead.recv() {
+    for (x, y) in to_die {
         colony.make_dead(x, y);
     }
 }
