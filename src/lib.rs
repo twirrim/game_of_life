@@ -29,11 +29,11 @@ pub fn process_frame(colony: &mut Colony) {
 
     colony.cells.iter().enumerate().for_each(|(x, row)| {
         for (y, cell) in row.iter().enumerate() {
-            if (cell.alive && cell.neighbours == 2) || cell.neighbours == 3 {
+            if (cell.is_alive() && cell.neighbours == 2) || cell.neighbours == 3 {
                 to_live.push((x, y));
-            } else if cell.alive {
+            } else if cell.is_alive() {
                 to_die.push((x, y));
-            } else if !cell.alive && cell.life_left > 0 {
+            } else if !cell.is_alive() && cell.life_left > 0 {
                 to_reduce.push((x, y));
             };
         }

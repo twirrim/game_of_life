@@ -19,13 +19,18 @@ const OFFSETS: [(i32, i32); 8] = [
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy, GetSize)]
 pub struct State {
     pub life_left: u8,
-    pub alive: bool,
     pub neighbours: usize,
+}
+
+impl State {
+    pub fn is_alive(self) -> bool {
+        self.life_left == 255
+    }
 }
 
 impl fmt::Display for State {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let alive = match &self.alive {
+        let alive = match &self.is_alive() {
             false => Red.paint("\u{274C}"),
             true => Green.paint("\u{2705}"),
         };
@@ -47,7 +52,6 @@ impl Colony {
                 vec![
                     State {
                         life_left: 0,
-                        alive: false,
                         neighbours: 0
                     };
                     height
@@ -58,14 +62,15 @@ impl Colony {
     }
 
     fn set_target_state(&mut self, x: i32, y: i32, state: bool) {
-        if self.cells[x as usize][y as usize].alive == state {
+        if self.cells[x as usize][y as usize].is_alive() == state {
             return;
         };
         // Make it live/die
-        self.cells[x as usize][y as usize].alive = state;
         if state {
-            self.cells[x as usize][y as usize].life_left = 255;
-        }
+            self.cells[x as usize][y as usize].life_left = 255
+        } else {
+            self.cells[x as usize][y as usize].life_left = 254
+        };
 
         // Update the neighbour counts
         for (off_x, off_y) in OFFSETS {
@@ -114,7 +119,7 @@ impl fmt::Display for Colony {
         for row in &self.cells {
             let mut row_out = vec![];
             for cell in row {
-                let alive = match cell.alive {
+                let alive = match cell.is_alive() {
                     false => Red.paint("\u{274C}"),
                     true => Green.paint("\u{2705}"),
                 };
@@ -142,10 +147,10 @@ mod tests {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
                 if x == 1 && y == 1 {
-                    assert!(colony.cells[x][y].alive);
+                    assert!(colony.cells[x][y].is_alive());
                     assert_eq!(colony.cells[x][y].life_left, 255);
                 } else {
-                    assert!(!colony.cells[x][y].alive);
+                    assert!(!colony.cells[x][y].is_alive());
                 };
             }
         }
@@ -174,7 +179,7 @@ mod tests {
         for x in 0..colony.cells.len() {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
-                assert!(!colony.cells[x][y].alive)
+                assert!(!colony.cells[x][y].is_alive())
             }
         }
         println!("Checking zero neighbours");
@@ -197,9 +202,9 @@ mod tests {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
                 if x == 0 && y == 0 {
-                    assert!(colony.cells[x][y].alive);
+                    assert!(colony.cells[x][y].is_alive());
                 } else {
-                    assert!(!colony.cells[x][y].alive);
+                    assert!(!colony.cells[x][y].is_alive());
                 };
             }
         }
@@ -226,7 +231,7 @@ mod tests {
         for x in 0..colony.cells.len() {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
-                assert!(!colony.cells[x][y].alive)
+                assert!(!colony.cells[x][y].is_alive())
             }
         }
         for x in 0..colony.cells.len() {
@@ -246,9 +251,9 @@ mod tests {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
                 if x == 14 && y == 14 {
-                    assert!(colony.cells[x][y].alive);
+                    assert!(colony.cells[x][y].is_alive());
                 } else {
-                    assert!(!colony.cells[x][y].alive);
+                    assert!(!colony.cells[x][y].is_alive());
                 };
             }
         }
@@ -278,7 +283,7 @@ mod tests {
         for x in 0..colony.cells.len() {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
-                assert!(!colony.cells[x][y].alive)
+                assert!(!colony.cells[x][y].is_alive())
             }
         }
         for x in 0..colony.cells.len() {
@@ -301,9 +306,9 @@ mod tests {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
                 if x == 1 && y == 1 {
-                    assert!(colony.cells[x][y].alive);
+                    assert!(colony.cells[x][y].is_alive());
                 } else {
-                    assert!(!colony.cells[x][y].alive);
+                    assert!(!colony.cells[x][y].is_alive());
                 };
             }
         }
@@ -332,7 +337,7 @@ mod tests {
         // Check aliveness
         for x in 0..colony.cells.len() {
             for y in 0..colony.cells[x].len() {
-                assert!(!colony.cells[x][y].alive);
+                assert!(!colony.cells[x][y].is_alive());
             }
         }
         // Check counts
