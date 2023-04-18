@@ -5,18 +5,18 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [profile.release]
-debug = true
 lto = "thin"
 
 [dev-dependencies]
 criterion = { version = "0.4", features = ["html_reports"] }
 
 [dependencies]
-ansi_term = "0.12.1"
-crossbeam-channel = "0.5.8"
-indicatif = { version = "0.17.3", features = ["rayon"] }
+ansi_term = "0.12"
+get-size = "0.1.3"
+get-size-derive = "0.1.2"
+indicatif = { version = "0.17"}
 rand = "0.8"
-rayon = "1.7.0"
+rayon = "1.7"
 ril = { version = "0.9", features = ["png"] }
 
 [[bench]]

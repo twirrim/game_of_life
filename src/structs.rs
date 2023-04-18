@@ -1,5 +1,8 @@
 use std::fmt;
 
+use get_size::GetSize;
+use get_size_derive::*;
+
 use ansi_term::Colour::{Green, Red};
 
 const OFFSETS: [(i32, i32); 8] = [
@@ -13,7 +16,7 @@ const OFFSETS: [(i32, i32); 8] = [
     (1, 1),
 ];
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy, GetSize)]
 pub struct State {
     pub life_left: u8,
     pub alive: bool,
@@ -30,7 +33,7 @@ impl fmt::Display for State {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, GetSize)]
 pub struct Colony {
     pub cells: Vec<Vec<State>>,
 }

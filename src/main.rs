@@ -3,6 +3,7 @@ use std::sync::mpsc::sync_channel;
 use std::thread;
 use std::thread::available_parallelism;
 
+use get_size::GetSize;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::iter::ParallelBridge;
 use rayon::prelude::*;
@@ -20,11 +21,12 @@ fn main() {
         println!("Starting with {:} cells", starting_cells);
         println!("Randomising starting cells");
 
-        let mut cells = initialise(starting_cells, WIDTH, HEIGHT);
-        println!("Colony initialised");
+        let mut colony = initialise(starting_cells, WIDTH, HEIGHT);
+        let size = colony.get_heap_size();
+        println!("Colony initialised: Consuming {size} bytes");
         for frame in 0..FRAMES {
-            process_frame(&mut cells);
-            tx.send((frame, cells.clone())).unwrap();
+            process_frame(&mut colony);
+            tx.send((frame, colony.clone())).unwrap();
         }
         drop(tx);
     });

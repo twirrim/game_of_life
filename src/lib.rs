@@ -2,9 +2,9 @@ pub mod consts;
 pub mod structs;
 
 extern crate ansi_term;
-// extern crate crossbeam_channel;
+extern crate get_size;
+extern crate get_size_derive;
 
-// use crossbeam_channel::unbounded;
 use rand::Rng;
 
 use crate::structs::Colony;
