@@ -35,6 +35,66 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     c.bench_with_input(BenchmarkId::new("bigger_set", 1), &colony, |b, s| {
         b.iter(|| process_frame(&mut s.clone()));
     });
+
+    // Using a neat "gun" pattern, small but can be looped many times.
+    // This should hopefully help figure out performance over time.
+    let mut colony = Colony::new(1920, 1080);
+    for cell in [
+        //  ........................O
+        (0, 24),
+        //  ......................O.O
+        (1, 22),
+        (1, 24),
+        //  ............OO......OO............OO
+        (2, 12),
+        (2, 13),
+        (2, 20),
+        (2, 21),
+        (2, 34),
+        (2, 35),
+        //  ...........O...O....OO............OO
+        (3, 11),
+        (3, 15),
+        (3, 20),
+        (3, 21),
+        (3, 34),
+        (3, 35),
+        //  OO........O.....O...OO
+        (4, 0),
+        (4, 1),
+        (4, 10),
+        (4, 16),
+        (4, 20),
+        (4, 21),
+        //  OO........O...O.OO....O.O
+        (5, 0),
+        (5, 1),
+        (5, 10),
+        (5, 14),
+        (5, 16),
+        (5, 17),
+        (5, 22),
+        (5, 24),
+        //  ..........O.....O.......O
+        (6, 10),
+        (6, 16),
+        (6, 24),
+        //  ...........O...O
+        (7, 11),
+        (7, 15),
+        //  ............OO
+        (8, 12),
+        (8, 13),
+    ] {
+        colony.make_alive(cell.0, cell.1);
+    }
+    c.bench_with_input(BenchmarkId::new("gospel_glider", 1), &colony, |b, s| {
+        b.iter(|| {
+            for _ in 0..100 {
+                process_frame(&mut s.clone())
+            }
+        })
+    });
 }
 
 criterion_group!(benches, criterion_benchmark);
