@@ -2,22 +2,10 @@ use std::fmt;
 
 use ansi_term::Colour::{Green, Red};
 
-const OFFSETS: [(i32, i32); 8] = [
-    (-1, -1),
-    (-1, 0),
-    (-1, 1),
-    (0, -1),
-    (0, 1),
-    (1, -1),
-    (1, 0),
-    (1, 1),
-];
-
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy)]
 pub struct State {
-    pub life_left: u8,
     pub alive: bool,
-    pub neighbours: usize,
+    pub neighbours: isize,
 }
 
 impl fmt::Display for State {
@@ -26,7 +14,7 @@ impl fmt::Display for State {
             false => Red.paint("\u{274C}"),
             true => Green.paint("\u{2705}"),
         };
-        write!(f, "{alive},{},{:03}", &self.neighbours, &self.life_left)
+        write!(f, "{alive},{}", &self.neighbours)
     }
 }
 
@@ -36,66 +24,65 @@ pub struct Colony {
 }
 
 impl Colony {
-    pub fn new(width: usize, height: usize) -> Colony {
+    pub fn new(width: isize, height: isize) -> Colony {
         // Really don't like the way rustfmt is formatting this!
         // It's: vec![vec![State { alive: false, neighbours: 0 }; height]; width]
         Colony {
             cells: vec![
                 vec![
                     State {
-                        life_left: 0,
                         alive: false,
                         neighbours: 0
                     };
-                    height
+                    height as usize
                 ];
-                width
+                width as usize
             ],
         }
     }
 
-    fn set_target_state(&mut self, x: i32, y: i32, state: bool) {
+    fn set_target_state(&mut self, x: isize, y: isize, state: bool) {
         if self.cells[x as usize][y as usize].alive == state {
             return;
         };
         // Make it live/die
         self.cells[x as usize][y as usize].alive = state;
-        if state {
-            self.cells[x as usize][y as usize].life_left = 255;
-        }
+
+        let offsets = vec![
+            (x - 1, y - 1),
+            (x - 1, y),
+            (x - 1, y + 1),
+            (x, y - 1),
+            (x, y + 1),
+            (x + 1, y - 1),
+            (x + 1, y),
+            (x + 1, y + 1),
+        ];
 
         // Update the neighbour counts
-        for (off_x, off_y) in OFFSETS {
+        for (x, y) in offsets {
             // Argh more fun with type casting
-            if ((x >= self.cells.len() as i32 - 1) && off_x == 1)
-                || ((y >= self.cells[x as usize].len() as i32 - 1) && off_y == 1)
-                || (x == 0 && off_x == -1)
-                || (y == 0 && off_y == -1)
+            if x >= self.cells.len() as isize
+                || x < 0
+                || y < 0
+                || y >= self.cells[x as usize].len() as isize
             {
                 continue;
             };
             if state {
-                self.cells[(x + off_x) as usize][(y + off_y) as usize].neighbours += 1;
+                self.cells[x as usize][y as usize].neighbours += 1;
             } else {
-                self.cells[(x + off_x) as usize][(y + off_y) as usize].neighbours -= 1;
+                self.cells[x as usize][y as usize].neighbours -= 1;
             };
         }
     }
 
     pub fn make_alive(&mut self, x: usize, y: usize) {
-        self.set_target_state(x as i32, y as i32, true);
+        self.set_target_state(x as isize, y as isize, true);
     }
 
     pub fn make_dead(&mut self, x: usize, y: usize) {
-        self.set_target_state(x as i32, y as i32, false);
-    }
-
-    pub fn reduce_life(&mut self, x: usize, y: usize) {
-        if self.cells[x][y].life_left >= 20 {
-            self.cells[x][y].life_left -= 20;
-        } else {
-            self.cells[x][y].life_left = 0;
-        };
+        self.set_target_state(x as isize, y as isize, false);
     }
 
     pub fn print(&self) {
@@ -115,7 +102,7 @@ impl fmt::Display for Colony {
                     false => Red.paint("\u{274C}"),
                     true => Green.paint("\u{2705}"),
                 };
-                row_out.push(format!("{alive},{},{:03}", cell.neighbours, cell.life_left))
+                row_out.push(format!("{alive},{}", cell.neighbours));
             }
             row_out.push(String::from("\n"));
             output.push(row_out.join("|"));
@@ -132,15 +119,13 @@ mod tests {
     fn make_alive_on_small() {
         let mut colony = Colony::new(3, 3);
         colony.make_alive(1, 1);
-        colony.print();
         println!("Checking aliveness");
         // Check aliveness
+        println!("{colony}");
         for x in 0..colony.cells.len() {
             for y in 0..colony.cells[x].len() {
-                println!("{x},{y}");
                 if x == 1 && y == 1 {
                     assert!(colony.cells[x][y].alive);
-                    assert_eq!(colony.cells[x][y].life_left, 255);
                 } else {
                     assert!(!colony.cells[x][y].alive);
                 };
@@ -150,7 +135,6 @@ mod tests {
         println!("Checking counts");
         for x in 0..colony.cells.len() {
             for y in 0..colony.cells[x].len() {
-                println!("{x},{y}");
                 if x == 1 && y == 1 {
                     assert_eq!(colony.cells[x][y].neighbours, 0);
                 } else {
