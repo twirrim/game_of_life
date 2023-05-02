@@ -3,8 +3,8 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use gol::structs::Colony;
 use gol::{initialise, process_frame};
 
-const WIDTH: usize = 3840;
-const HEIGHT: usize = 2160;
+const WIDTH: isize = 3840;
+const HEIGHT: isize = 2160;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     // Benchmark the init process
@@ -34,6 +34,14 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     }
     c.bench_with_input(BenchmarkId::new("bigger_set", 1), &colony, |b, s| {
         b.iter(|| process_frame(&mut s.clone()));
+    });
+    // Now add multiple loops
+    c.bench_with_input(BenchmarkId::new("bigger_set_looped", 1), &colony, |b, s| {
+        b.iter(|| {
+            for _ in 0..10 {
+                process_frame(&mut s.clone())
+            }
+        });
     });
 }
 
