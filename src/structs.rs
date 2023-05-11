@@ -1,11 +1,24 @@
 use std::fmt;
 
 use ansi_term::Colour::{Green, Red};
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+pub struct Cli {
+    #[arg(short, long,  value_parser = clap::value_parser!(i32).range(2..16384))]
+    pub width: i32,
+    #[arg(short, long,  value_parser = clap::value_parser!(i32).range(2..16384))]
+    pub height: i32,
+    #[arg(short, long)]
+    pub frames: usize,
+    #[arg(short, long)]
+    pub output: String,
+}
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy)]
 pub struct State {
     pub alive: bool,
-    pub neighbours: isize,
+    pub neighbours: u8,
 }
 
 impl fmt::Display for State {

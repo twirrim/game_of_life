@@ -9,19 +9,8 @@ use rayon::iter::ParallelBridge;
 use rayon::prelude::*;
 use ril::prelude::*;
 
+use gol::structs::Cli;
 use gol::{initialise, process_frame};
-
-#[derive(Parser, Debug)]
-struct Cli {
-    #[arg(short, long)]
-    width: isize,
-    #[arg(short, long)]
-    height: isize,
-    #[arg(short, long)]
-    frames: usize,
-    #[arg(short, long)]
-    output: String,
-}
 
 fn main() {
     let args = Cli::parse();
@@ -33,7 +22,7 @@ fn main() {
         println!("Starting with {:} cells", starting_cells);
         println!("Randomising starting cells");
 
-        let mut cells = initialise(starting_cells, args.width, args.height);
+        let mut cells = initialise(starting_cells, args.width as isize, args.height as isize);
         println!("Colony initialised");
         for frame in 0..args.frames {
             process_frame(&mut cells);

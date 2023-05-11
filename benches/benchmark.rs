@@ -35,14 +35,6 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     c.bench_with_input(BenchmarkId::new("bigger_set", 1), &colony, |b, s| {
         b.iter(|| process_frame(&mut s.clone()));
     });
-    // Now add multiple loops
-    c.bench_with_input(BenchmarkId::new("bigger_set_looped", 1), &colony, |b, s| {
-        b.iter(|| {
-            for _ in 0..10 {
-                process_frame(&mut s.clone())
-            }
-        });
-    });
 
     // Using a neat "gun" pattern, small but can be looped many times.
     // This should hopefully help figure out performance over time.
@@ -89,7 +81,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     }
     c.bench_with_input(BenchmarkId::new("gospel_glider", 1), &colony, |b, s| {
         b.iter(|| {
-            for _ in 0..100 {
+            for _ in 0..10 {
                 process_frame(&mut s.clone())
             }
         })
