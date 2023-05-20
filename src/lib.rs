@@ -3,6 +3,7 @@ pub mod structs;
 extern crate ansi_term;
 extern crate clap;
 
+use bilge::prelude::*;
 use rand::Rng;
 
 use crate::structs::Colony;
@@ -26,9 +27,10 @@ pub fn process_frame(colony: &mut Colony) {
     let mut to_die = vec![];
     colony.cells.iter().enumerate().for_each(|(x, row)| {
         for (y, cell) in row.iter().enumerate() {
-            if (cell.alive && cell.neighbours == 2) || cell.neighbours == 3 {
+            if (cell.alive() && cell.neighbours() == u3::new(2)) || cell.neighbours() == u3::new(3)
+            {
                 to_live.push((x, y));
-            } else if cell.alive {
+            } else if cell.alive() {
                 to_die.push((x, y));
             };
         }

@@ -47,7 +47,7 @@ fn main() {
         let mut live_cells = 0;
         for (x, row) in colony.cells.iter().enumerate() {
             for (y, cell) in row.iter().enumerate() {
-                if cell.alive {
+                if cell.alive() {
                     live_cells += 1;
                     current_image.set_pixel(x as u32, y as u32, Rgb::white());
                 };

@@ -13,6 +13,7 @@ criterion = { version = "0.4", features = ["html_reports"] }
 
 [dependencies]
 ansi_term = "0.12"
+bilge = "0.1.2"
 clap = { version ="4.2", features = ["derive"] }
 indicatif = { version = "0.17" }
 rand = "0.8"
