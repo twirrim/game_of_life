@@ -1,5 +1,7 @@
 use std::fmt;
 
+use bilge::prelude::*;
+
 use ansi_term::Colour::{Green, Red};
 use clap::Parser;
 
@@ -15,23 +17,24 @@ pub struct Cli {
     pub output: String,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy)]
+#[bitsize(4)]
+#[derive(DebugBits, FromBits, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct State {
     pub alive: bool,
-    pub neighbours: u8,
+    pub neighbours: u3,
 }
 
 impl fmt::Display for State {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let alive = match &self.alive {
+        let alive = match &self.alive() {
             false => Red.paint("\u{274C}"),
             true => Green.paint("\u{2705}"),
         };
-        write!(f, "{alive},{}", &self.neighbours)
+        write!(f, "{alive},{}", &self.neighbours())
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Colony {
     pub cells: Vec<Vec<State>>,
 }
@@ -41,25 +44,16 @@ impl Colony {
         // Really don't like the way rustfmt is formatting this!
         // It's: vec![vec![State { alive: false, neighbours: 0 }; height]; width]
         Colony {
-            cells: vec![
-                vec![
-                    State {
-                        alive: false,
-                        neighbours: 0
-                    };
-                    height as usize
-                ];
-                width as usize
-            ],
+            cells: vec![vec![State::new(false, u3::new(0b000)); height as usize]; width as usize],
         }
     }
 
     fn set_target_state(&mut self, x: isize, y: isize, state: bool) {
-        if self.cells[x as usize][y as usize].alive == state {
+        if self.cells[x as usize][y as usize].alive() == state {
             return;
         };
         // Make it live/die
-        self.cells[x as usize][y as usize].alive = state;
+        self.cells[x as usize][y as usize].set_alive(state);
 
         let offsets = vec![
             (x - 1, y - 1),
@@ -82,10 +76,11 @@ impl Colony {
             {
                 continue;
             };
+            let neighbours = self.cells[x as usize][y as usize].neighbours();
             if state {
-                self.cells[x as usize][y as usize].neighbours += 1;
+                self.cells[x as usize][y as usize].set_neighbours(neighbours + u3::new(0b001));
             } else {
-                self.cells[x as usize][y as usize].neighbours -= 1;
+                self.cells[x as usize][y as usize].set_neighbours(neighbours - u3::new(0b001));
             };
         }
     }
@@ -111,11 +106,11 @@ impl fmt::Display for Colony {
         for row in &self.cells {
             let mut row_out = vec![];
             for cell in row {
-                let alive = match cell.alive {
+                let alive = match cell.alive() {
                     false => Red.paint("\u{274C}"),
                     true => Green.paint("\u{2705}"),
                 };
-                row_out.push(format!("{alive},{}", cell.neighbours));
+                row_out.push(format!("{alive},{}", cell.neighbours()));
             }
             row_out.push(String::from("\n"));
             output.push(row_out.join("|"));
@@ -138,9 +133,9 @@ mod tests {
         for x in 0..colony.cells.len() {
             for y in 0..colony.cells[x].len() {
                 if x == 1 && y == 1 {
-                    assert!(colony.cells[x][y].alive);
+                    assert!(colony.cells[x][y].alive());
                 } else {
-                    assert!(!colony.cells[x][y].alive);
+                    assert!(!colony.cells[x][y].alive());
                 };
             }
         }
@@ -149,9 +144,9 @@ mod tests {
         for x in 0..colony.cells.len() {
             for y in 0..colony.cells[x].len() {
                 if x == 1 && y == 1 {
-                    assert_eq!(colony.cells[x][y].neighbours, 0);
+                    assert_eq!(colony.cells[x][y].neighbours(), u3::new(0));
                 } else {
-                    assert_eq!(colony.cells[x][y].neighbours, 1);
+                    assert_eq!(colony.cells[x][y].neighbours(), u3::new(1));
                 };
             }
         }
@@ -168,14 +163,14 @@ mod tests {
         for x in 0..colony.cells.len() {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
-                assert!(!colony.cells[x][y].alive)
+                assert!(!colony.cells[x][y].alive())
             }
         }
         println!("Checking zero neighbours");
         for x in 0..colony.cells.len() {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
-                assert_eq!(colony.cells[x][y].neighbours, 0)
+                assert_eq!(colony.cells[x][y].neighbours(), u3::new(0))
             }
         }
     }
@@ -191,9 +186,9 @@ mod tests {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
                 if x == 0 && y == 0 {
-                    assert!(colony.cells[x][y].alive);
+                    assert!(colony.cells[x][y].alive());
                 } else {
-                    assert!(!colony.cells[x][y].alive);
+                    assert!(!colony.cells[x][y].alive());
                 };
             }
         }
@@ -203,9 +198,9 @@ mod tests {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
                 if (x == 0 && y == 0) || x == 2 || y == 2 {
-                    assert_eq!(colony.cells[x][y].neighbours, 0);
+                    assert_eq!(colony.cells[x][y].neighbours(), u3::new(0));
                 } else {
-                    assert_eq!(colony.cells[x][y].neighbours, 1);
+                    assert_eq!(colony.cells[x][y].neighbours(), u3::new(1));
                 };
             }
         }
@@ -220,13 +215,13 @@ mod tests {
         for x in 0..colony.cells.len() {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
-                assert!(!colony.cells[x][y].alive)
+                assert!(!colony.cells[x][y].alive())
             }
         }
         for x in 0..colony.cells.len() {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
-                assert_eq!(colony.cells[x][y].neighbours, 0)
+                assert_eq!(colony.cells[x][y].neighbours(), u3::new(0))
             }
         }
     }
@@ -240,9 +235,9 @@ mod tests {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
                 if x == 14 && y == 14 {
-                    assert!(colony.cells[x][y].alive);
+                    assert!(colony.cells[x][y].alive());
                 } else {
-                    assert!(!colony.cells[x][y].alive);
+                    assert!(!colony.cells[x][y].alive());
                 };
             }
         }
@@ -252,12 +247,12 @@ mod tests {
                 println!("{x},{y}");
                 if x >= 13 && x <= 15 && y >= 13 && y <= 15 {
                     if x == 14 && y == 14 {
-                        assert_eq!(colony.cells[x][y].neighbours, 0);
+                        assert_eq!(colony.cells[x][y].neighbours(), u3::new(0));
                     } else {
-                        assert_eq!(colony.cells[x][y].neighbours, 1);
+                        assert_eq!(colony.cells[x][y].neighbours(), u3::new(1));
                     };
                 } else {
-                    assert_eq!(colony.cells[x][y].neighbours, 0);
+                    assert_eq!(colony.cells[x][y].neighbours(), u3::new(0));
                 };
             }
         }
@@ -272,13 +267,13 @@ mod tests {
         for x in 0..colony.cells.len() {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
-                assert!(!colony.cells[x][y].alive)
+                assert!(!colony.cells[x][y].alive())
             }
         }
         for x in 0..colony.cells.len() {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
-                assert_eq!(colony.cells[x][y].neighbours, 0)
+                assert_eq!(colony.cells[x][y].neighbours(), u3::new(0))
             }
         }
     }
@@ -295,9 +290,9 @@ mod tests {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
                 if x == 1 && y == 1 {
-                    assert!(colony.cells[x][y].alive);
+                    assert!(colony.cells[x][y].alive());
                 } else {
-                    assert!(!colony.cells[x][y].alive);
+                    assert!(!colony.cells[x][y].alive());
                 };
             }
         }
@@ -307,9 +302,9 @@ mod tests {
             for y in 0..colony.cells[x].len() {
                 println!("{x},{y}");
                 if x == 1 && y == 1 {
-                    assert_eq!(colony.cells[x][y].neighbours, 0);
+                    assert_eq!(colony.cells[x][y].neighbours(), u3::new(0));
                 } else {
-                    assert_eq!(colony.cells[x][y].neighbours, 1);
+                    assert_eq!(colony.cells[x][y].neighbours(), u3::new(1));
                 };
             }
         }
@@ -326,14 +321,14 @@ mod tests {
         // Check aliveness
         for x in 0..colony.cells.len() {
             for y in 0..colony.cells[x].len() {
-                assert!(!colony.cells[x][y].alive);
+                assert!(!colony.cells[x][y].alive());
             }
         }
         // Check counts
         println!("Checking counts");
         for x in 0..colony.cells.len() {
             for y in 0..colony.cells[x].len() {
-                assert_eq!(colony.cells[x][y].neighbours, 0);
+                assert_eq!(colony.cells[x][y].neighbours(), u3::new(0));
             }
         }
     }
